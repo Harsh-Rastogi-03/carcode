@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+# carcode: hands-free Claude Code from CarPlay. Run ./carcode help for commands.
+set -euo pipefail
+cd "$(dirname "$0")"
+ROOT="$PWD"
+DATA="$ROOT/data"
+mkdir -p "$DATA"
+[[ -f .env ]] && set -a && source .env && set +a
+PORT="${PORT:-8787}"
+LABEL="${CARCODE_LABEL:-dev.carcode}"
+NAME="${CARCODE_NAME:-Jarvis}"
+AGENTS="$HOME/Library/LaunchAgents"
+UID_="$(id -u)"
+
+bold() { printf '\033[1m%s\033[0m\n' "$*"; }
+ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
+bad()  { printf '  \033[31m✗\033[0m %s\n' "$*"; }
+die()  { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
+
+url()   { cat "$DATA/url" 2>/dev/null || true; }
+token() { cat "$DATA/token"; }
+
+ensure_token() {
+  if [[ ! -s "$DATA/token" ]]; then
+    openssl rand -hex 24 > "$DATA/token"
+    chmod 600 "$DATA/token"
+  fi
+}
+
+cmd_setup() {
+  bold "Checking requirements"
+  local missing=0
+  [[ "$(uname)" == Darwin ]] && ok "macOS" || { bad "macOS is required (Shortcuts signing, launchd)"; missing=1; }
+  for tool in uv claude cloudflared; do
+    if command -v "$tool" >/dev/null; then ok "$tool"; else bad "$tool not found"; missing=1; fi
+  done
+  command -v gh >/dev/null && ok "gh (optional, for GitHub)" || echo "  - gh not found (optional: brew install gh && gh auth login)"
+  if (( missing )); then
+    echo
+    echo "Install what's missing:"
+    echo "  brew install uv cloudflared"
+    echo "  curl -fsSL https://claude.ai/install.sh | bash   # then run: claude, and log in"
+    exit 1
+  fi
+  ensure_token
+  ok "access token in data/token"
+  if [[ ! -f .env ]]; then
+    cp .env.example .env
+    ok "created .env (edit it to set your repos folder, name and language)"
+  else
+    ok ".env exists"
+  fi
+  echo
+  bold "Next"
+  echo "  1. Edit .env: set CARCODE_WORKDIR to the folder that holds your repos."
+  echo "  2. ./carcode install     # runs carcode in the background, starts at login"
+  echo "  3. ./carcode shortcut    # creates the Siri Shortcut and opens it"
+}
+
+cmd_start() {
+  ensure_token
+  echo "Running in the foreground. Ctrl+C stops it. For background use: ./carcode install"
+  ./run_tunnel.sh & local tunnel=$!
+  trap 'kill $tunnel 2>/dev/null' EXIT INT TERM
+  ./run_server.sh
+}
+
+plist() {  # plist <kind>
+  cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL.$1</string>
+  <key>ProgramArguments</key><array><string>/bin/bash</string><string>$ROOT/run_$1.sh</string></array>
+  <key>WorkingDirectory</key><string>$ROOT</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>$PATH</string>
+    <key>HOME</key><string>$HOME</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>15</integer>
+  <key>StandardOutPath</key><string>$DATA/$1.log</string>
+  <key>StandardErrorPath</key><string>$DATA/$1.log</string>
+</dict>
+</plist>
+EOF
+}
+
+cmd_install() {
+  ensure_token
+  mkdir -p "$AGENTS"
+  for kind in tunnel server; do
+    launchctl bootout "gui/$UID_/$LABEL.$kind" 2>/dev/null || true
+    plist "$kind" > "$AGENTS/$LABEL.$kind.plist"
+    launchctl bootstrap "gui/$UID_" "$AGENTS/$LABEL.$kind.plist"
+  done
+  echo "Installed. Waiting for the tunnel..."
+  for _ in $(seq 1 45); do [[ -s "$DATA/url" ]] && [[ "$DATA/url" -nt "$AGENTS/$LABEL.tunnel.plist" ]] && break; sleep 1; done
+  cmd_status
+}
+
+cmd_uninstall() {
+  for kind in server tunnel; do
+    launchctl bootout "gui/$UID_/$LABEL.$kind" 2>/dev/null || true
+    rm -f "$AGENTS/$LABEL.$kind.plist"
+  done
+  echo "Stopped and removed the background services. Your data/ folder is untouched."
+}
+
+cmd_restart() {
+  launchctl kickstart -k "gui/$UID_/$LABEL.server" && echo "Server restarted (URL unchanged)."
+}
+
+cmd_status() {
+  bold "carcode ($NAME)"
+  for kind in server tunnel; do
+    if launchctl print "gui/$UID_/$LABEL.$kind" 2>/dev/null | grep -q "state = running"; then
+      ok "$kind running"
+    else
+      bad "$kind not running"
+    fi
+  done
+  if curl -sf -m 3 "http://127.0.0.1:$PORT/health" >/dev/null; then ok "server answers locally"; else bad "server not answering on port $PORT"; fi
+  local u; u="$(url)"
+  if [[ -n "$u" ]]; then
+    echo "  URL:       $u/voice"
+    echo "  Dashboard: $u/ui#t=$(token)"
+  fi
+}
+
+cmd_shortcut() {
+  [[ -n "$(url)" ]] || die "No tunnel URL yet. Run ./carcode install (or ./carcode start) first."
+  local file; file="$(python3 make_shortcut.py)"
+  echo "Created $file"
+  echo "Opening it: click Add Shortcut. Delete any older '$NAME' shortcut first so Siri doesn't pick a duplicate."
+  open "$file"
+}
+
+cmd_say() {
+  local base="http://127.0.0.1:$PORT"
+  curl -sS --max-time 120 "$base/voice" -H "Content-Type: application/json" \
+    -H "X-Carcode-Token: $(token)" \
+    -d "$(python3 -c 'import json,sys; print(json.dumps({"text": " ".join(sys.argv[1:]), "device": "terminal"}))' "$@")"
+  echo
+}
+
+cmd_ui()   { local u; u="$(url)"; [[ -n "$u" ]] || u="http://127.0.0.1:$PORT"; open "$u/ui#t=$(token)"; }
+cmd_logs() { tail -n 50 -f "$DATA/server.log"; }
+
+cmd_help() {
+  cat <<EOF
+carcode: hands-free Claude Code from CarPlay
+
+  ./carcode setup       check requirements, create token and .env
+  ./carcode install     run in the background (starts at login, restarts on crash)
+  ./carcode shortcut    build the Siri Shortcut for the current URL and open it
+  ./carcode status      show services, URL and dashboard link
+  ./carcode say "..."   talk to $NAME from the terminal
+  ./carcode ui          open the live conversation dashboard
+  ./carcode logs        follow the server log
+  ./carcode restart     restart the server (keeps the URL)
+  ./carcode start       run in the foreground instead of installing
+  ./carcode uninstall   stop and remove the background services
+EOF
+}
+
+case "${1:-help}" in
+  setup|start|install|uninstall|restart|status|shortcut|ui|logs|help) "cmd_$1" ;;
+  say) shift; cmd_say "$@" ;;
+  url) url ;;
+  token) token ;;
+  *) cmd_help; exit 1 ;;
+esac
