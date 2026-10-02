@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>{{name}} · carcode</title>
+<style>
+  :root {
+    --bg: #0b0d10; --panel: #14171c; --line: #22272f;
+    --text: #e8eaed; --muted: #8b939e; --accent: #4cc2ff; --you: #1f2a36; --ok: #3ddc97; --warn: #ffb547;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 17px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px;
+    padding: calc(14px + env(safe-area-inset-top)) 16px 14px; background: rgba(11,13,16,.92);
+    backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .orb { width: 34px; height: 34px; border-radius: 50%; flex: none;
+    background: radial-gradient(circle at 35% 30%, #9fe1ff, var(--accent) 45%, #0a4f73 100%);
+    box-shadow: 0 0 0 0 rgba(76,194,255,.5); }
+  .orb.busy { animation: pulse 1.4s ease-out infinite; }
+  @keyframes pulse { to { box-shadow: 0 0 0 16px rgba(76,194,255,0); } }
+  h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: .2px; }
+  #status { font-size: 14px; color: var(--muted); }
+  #status.live::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px;
+    border-radius: 50%; background: var(--ok); vertical-align: 1px; }
+  #status.down::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px;
+    border-radius: 50%; background: var(--warn); vertical-align: 1px; }
+  main { max-width: 820px; margin: 0 auto; padding: 16px 16px calc(120px + env(safe-area-inset-bottom)); }
+  .turn { margin: 18px 0; }
+  .meta { font-size: 12.5px; color: var(--muted); margin: 0 4px 6px; }
+  .you, .bot { padding: 12px 16px; border-radius: 18px; max-width: 88%; word-wrap: break-word; }
+  .you { margin-left: auto; background: var(--you); border-bottom-right-radius: 6px; }
+  .bot { background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 6px;
+    font-size: 19px; }
+  .row { display: flex; }
+  .row.right { justify-content: flex-end; }
+  .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; margin-left: 8px;
+    border: 1px solid var(--line); color: var(--muted); vertical-align: 2px; }
+  #working { position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    background: var(--panel); border-top: 1px solid var(--line); font-size: 16px; display: none; }
+  #working b { color: var(--accent); font-weight: 600; }
+  .empty { color: var(--muted); text-align: center; margin-top: 30vh; }
+  .empty big { display: block; font-size: 22px; color: var(--text); margin-bottom: 6px; }
+  form { max-width: 420px; margin: 25vh auto 0; padding: 0 16px; }
+  input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--text); font-size: 16px; }
+  button { margin-top: 10px; width: 100%; padding: 14px; border: 0; border-radius: 12px;
+    background: var(--accent); color: #00131f; font-weight: 650; font-size: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="orb" id="orb"></div>
+  <div><h1>{{name}}</h1><div id="status">Connecting…</div></div>
+</header>
+<main id="feed"></main>
+<div id="working"></div>
+
+<script>
+const feed = document.getElementById("feed");
+const statusEl = document.getElementById("status");
+const orb = document.getElementById("orb");
+const workingEl = document.getElementById("working");
+
+// Token comes from the link (#t=...), never sent to the server in the URL.
+function readToken() {
+  const m = location.hash.match(/t=([0-9a-f]+)/);
+  if (m) { try { localStorage.setItem("carcodeToken", m[1]); } catch {} history.replaceState(null, "", location.pathname); return m[1]; }
+  try { return localStorage.getItem("carcodeToken") || ""; } catch { return ""; }
+}
+let token = readToken();
+
+function askToken() {
+  feed.innerHTML = `<form id="f"><input id="t" placeholder="Paste your token" autocomplete="off"><button>Open</button></form>`;
+  document.getElementById("f").onsubmit = e => {
+    e.preventDefault();
+    token = document.getElementById("t").value.trim();
+    try { localStorage.setItem("carcodeToken", token); } catch {}
+    lastKey = ""; poll();
+  };
+}
+
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const time = ts => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+let lastKey = "";
+function render(data) {
+  const turns = data.turns.filter(t => t.device !== "test");
+  const key = JSON.stringify([turns.length, turns.at(-1)?.ts, data.working]);
+  if (key === lastKey) return;
+  lastKey = key;
+
+  const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 80;
+  if (!turns.length) {
+    feed.innerHTML = `<div class="empty"><big>Say "Hey Siri, {{name}}"</big>Your conversation shows up here as you talk.</div>`;
+  } else {
+    feed.innerHTML = turns.map(t => {
+      const tag = t.pending ? `<span class="tag">working</span>` : t.end ? `<span class="tag">ended</span>` : "";
+      const you = t.heard ? `<div class="row right"><div class="you">${esc(t.heard)}</div></div>` : "";
+      const reply = t.speak ? `<div class="row"><div class="bot">${esc(t.speak)}</div></div>` : "";
+      return `<div class="turn"><div class="meta">${time(t.ts)} · ${t.seconds}s${tag}</div>${you}${reply}</div>`;
+    }).join("");
+  }
+  const busy = data.working.length > 0;
+  orb.classList.toggle("busy", busy);
+  workingEl.style.display = busy ? "block" : "none";
+  workingEl.innerHTML = busy ? `<b>Working on</b> ${esc(data.working[0].task)}` : "";
+  if (nearBottom) scrollTo(0, document.body.scrollHeight);
+}
+
+async function poll() {
+  if (!token) { askToken(); statusEl.textContent = "Token needed"; return; }
+  try {
+    const r = await fetch("/api/history", { headers: { "X-Carcode-Token": token }, cache: "no-store" });
+    if (r.status === 401) { token = ""; askToken(); statusEl.textContent = "Token rejected"; return; }
+    render(await r.json());
+    statusEl.textContent = "Live"; statusEl.className = "live";
+  } catch {
+    statusEl.textContent = "Can't reach {{name}}"; statusEl.className = "down";
+  }
+  setTimeout(poll, 1500);
+}
+poll();
+</script>
+</body>
+</html>
