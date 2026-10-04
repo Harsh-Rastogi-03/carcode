@@ -6,14 +6,14 @@
 
 [![CI](https://github.com/Harsh-Rastogi-03/carcode/actions/workflows/ci.yml/badge.svg)](https://github.com/Harsh-Rastogi-03/carcode/actions/workflows/ci.yml) ![Server: macOS](https://img.shields.io/badge/server-macOS-111?logo=apple) ![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white) ![Works with Claude Code](https://img.shields.io/badge/works%20with-Claude%20Code-D97757) ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-**[Quick start](#-quick-start)** · **[What you can ask](#-what-you-can-ask)** · **[How it works](#-how-it-works)** · **[Customize](#-make-it-yours)** · **[Safety](#-safety)** · **[FAQ](#-faq)**
+**[Read the story](https://harshrastogi.tech/blog/code-from-your-car-claude-code-carplay)** · **[Quick start](#-quick-start)** · **[What you can ask](#-what-you-can-ask)** · **[How it works](#-how-it-works)** · **[Customize](#-make-it-yours)** · **[Safety](#-safety)** · **[FAQ](#-faq)**
 
 </div>
 
 <br>
 
 > [!NOTE]
-> **carcode turns Claude Code into a voice assistant for your drive.** Say *"Hey Siri, Jarvis"*, ask about your pull requests, Slack or inbox, or ask for a code change. Claude Code does the work on your Mac and answers out loud through CarPlay. No app to install, no API key, nothing to tap.
+> **carcode lets you code from your car.** It turns Claude Code into a voice assistant for your drive. Say *"Hey Siri, Jarvis"*, ask about your pull requests, Slack or inbox, or ask for a code change. Claude Code does the work on your Mac and answers out loud through CarPlay. No app to install, no API key, nothing to tap.
 
 <table>
 <tr>
