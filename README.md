@@ -1,4 +1,4 @@
-<img src="assets/banner.svg" alt="carcode: talk to Claude Code from your car" width="100%">
+<img src="assets/carcode-banner.svg" alt="carcode: talk to Claude Code from your car" width="100%">
 
 <p align="center">
   <a href="#install"><b>Install</b></a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#try-it-without-a-car">Try it without a car</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#what-you-can-ask">What you can ask</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#how-it-works">How it works</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#safety">Safety</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="https://www.harshrastogi.tech/blog/code-from-your-car-claude-code-carplay">The story</a>
@@ -13,7 +13,7 @@
 
 **carcode turns Claude Code into a voice assistant for your drive.** Say *"Hey Siri, Jarvis"*, ask about your pull requests, Slack or inbox, or ask for a code change. Claude Code does the work on your Mac and answers out loud through CarPlay. There's no app to install, no API key, and nothing to tap.
 
-<img src="assets/demo.svg" alt="A carcode conversation: ask about new issues, ask it to fix one and open a draft PR, and hear the answer" width="100%">
+<img src="assets/carcode-demo.svg" alt="A carcode conversation: ask about new issues, ask it to fix one and open a draft PR, and hear the answer" width="100%">
 
 ## Install
 
@@ -87,7 +87,7 @@ Why it feels good on the road:
 
 ## How it works
 
-<img src="assets/flow.svg" alt="Siri Shortcut → HTTPS tunnel → carcode server → Claude Code → your tools" width="100%">
+<img src="assets/carcode-flow.svg" alt="Siri Shortcut → HTTPS tunnel → carcode server → Claude Code → your tools" width="100%">
 
 | Piece | Job |
 |---|---|
