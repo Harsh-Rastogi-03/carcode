@@ -1,6 +1,6 @@
 [project]
 name = "carcode"
-version = "1.0.0"
+version = "1.1.0"
 description = "Hands-free Claude Code from Apple CarPlay via a Siri Shortcut"
 readme = "README.md"
 license = "MIT"

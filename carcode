@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # carcode: hands-free Claude Code from CarPlay. Run ./carcode help for commands.
 set -euo pipefail
+VERSION="1.1.0"
 cd "$(dirname "$0")"
 ROOT="$PWD"
 DATA="$ROOT/data"
@@ -20,6 +21,25 @@ die()  { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 url()   { cat "$DATA/url" 2>/dev/null || true; }
 token() { cat "$DATA/token"; }
 
+# set_env KEY VALUE: write or replace one setting in .env
+set_env() {
+  python3 - "$1" "$2" <<'PY'
+import re, sys
+from pathlib import Path
+key, value = sys.argv[1], sys.argv[2]
+path = Path(".env")
+lines = path.read_text().splitlines() if path.exists() else []
+pattern = re.compile(rf"^\s*#?\s*{re.escape(key)}=")
+for i, line in enumerate(lines):
+    if pattern.match(line):
+        lines[i] = f"{key}={value}"
+        break
+else:
+    lines.append(f"{key}={value}")
+path.write_text("\n".join(lines) + "\n")
+PY
+}
+
 ensure_token() {
   if [[ ! -s "$DATA/token" ]]; then
     openssl rand -hex 24 > "$DATA/token"
@@ -28,6 +48,18 @@ ensure_token() {
 }
 
 cmd_setup() {
+  local workdir="" name="" title="" language="" gh_user=""
+  while (( $# )); do
+    case "$1" in
+      --workdir)  workdir="$2"; shift 2 ;;
+      --name)     name="$2"; shift 2 ;;
+      --title)    title="$2"; shift 2 ;;
+      --language) language="$2"; shift 2 ;;
+      --gh-user)  gh_user="$2"; shift 2 ;;
+      *) die "Unknown option for setup: $1" ;;
+    esac
+  done
+
   bold "Checking requirements"
   local missing=0
   [[ "$(uname)" == Darwin ]] && ok "macOS" || { bad "macOS is required (Shortcuts signing, launchd)"; missing=1; }
@@ -46,15 +78,23 @@ cmd_setup() {
   ok "access token in data/token"
   if [[ ! -f .env ]]; then
     cp .env.example .env
-    ok "created .env (edit it to set your repos folder, name and language)"
+    ok "created .env"
   else
     ok ".env exists"
   fi
+
+  [[ -n "$workdir" ]]  && { set_env CARCODE_WORKDIR "$workdir"; ok "repos folder: $workdir"; }
+  [[ -n "$name" ]]     && { set_env CARCODE_NAME "$name"; ok "assistant name: $name"; }
+  [[ -n "$title" ]]    && { set_env CARCODE_USER_TITLE "$title"; ok "calls you: $title"; }
+  [[ -n "$language" ]] && { set_env CARCODE_LANGUAGE "$language"; ok "dictation language: $language"; }
+  [[ -n "$gh_user" ]]  && { set_env CARCODE_GH_USER "$gh_user"; ok "GitHub account: $gh_user"; }
+
   echo
   bold "Next"
-  echo "  1. Edit .env: set CARCODE_WORKDIR to the folder that holds your repos."
-  echo "  2. ./carcode install     # runs carcode in the background, starts at login"
-  echo "  3. ./carcode shortcut    # creates the Siri Shortcut and opens it"
+  [[ -z "$workdir" ]] && echo "  - Edit .env: set CARCODE_WORKDIR to the folder that holds your repos (or rerun with --workdir)."
+  echo "  - ./carcode install     # runs carcode in the background, starts at login"
+  echo "  - ./carcode talk        # try it by voice in this terminal, no phone needed"
+  echo "  - ./carcode shortcut    # creates the Siri Shortcut and opens it"
 }
 
 cmd_start() {
@@ -147,29 +187,101 @@ cmd_say() {
   echo
 }
 
+# doctor [--json]: check everything carcode needs and say how to fix what's missing.
+cmd_doctor() {
+  local json=0; [[ "${1:-}" == "--json" ]] && json=1
+  local -a names=() states=() fixes=()
+  check() {  # check <name> <required|optional> <fix> -- <test command...>
+    local label="$1" level="$2" fix="$3"; shift 4
+    if "$@" >/dev/null 2>&1; then
+      names+=("$label"); states+=("ok"); fixes+=("")
+    else
+      names+=("$label"); states+=("$level"); fixes+=("$fix")
+    fi
+  }
+  local wd; wd="$(eval echo "${CARCODE_WORKDIR:-}")"
+  local u; u="$(url)"
+
+  check "macOS"               required "carcode's server and Siri Shortcut need a Mac" -- test "$(uname)" = Darwin
+  check "uv"                  required "brew install uv" -- command -v uv
+  check "claude (Claude Code)" required "curl -fsSL https://claude.ai/install.sh | bash, then run: claude (and log in)" -- command -v claude
+  check "cloudflared"         required "brew install cloudflared" -- command -v cloudflared
+  check "gh (GitHub CLI)"     optional "brew install gh && gh auth login" -- command -v gh
+  check ".env settings"       required "./carcode setup" -- test -f .env
+  check "repos folder"        required "./carcode setup --workdir ~/path/to/your/repos" -- test -n "$wd" -a -d "$wd"
+  check "access token"        required "./carcode setup" -- test -s "$DATA/token"
+  check "server service"      required "./carcode install" -- bash -c "launchctl print gui/$UID_/$LABEL.server | grep -q 'state = running'"
+  check "tunnel service"      required "./carcode install" -- bash -c "launchctl print gui/$UID_/$LABEL.tunnel | grep -q 'state = running'"
+  check "server answers"      required "./carcode restart, then ./carcode logs" -- curl -sf -m 3 "http://127.0.0.1:$PORT/health"
+  check "public URL works"    required "./carcode install (the tunnel may be restarting; wait 30s)" -- curl -sf -m 8 "${u:-http://invalid}/health"
+  check "Siri Shortcut built" optional "./carcode shortcut" -- test -f "$DATA/$NAME.shortcut"
+
+  local failed=0 i
+  for i in "${!names[@]}"; do [[ "${states[$i]}" == required ]] && failed=1; done
+  if (( json )); then
+    python3 - "$failed" "${#names[@]}" "${names[@]}" "${states[@]}" "${fixes[@]}" <<'PY'
+import json, sys
+failed, n = int(sys.argv[1]), int(sys.argv[2])
+rest = sys.argv[3:]
+names, states, fixes = rest[:n], rest[n:2 * n], rest[2 * n:3 * n]
+print(json.dumps({
+    "ready": not failed,
+    "checks": [{"check": a, "status": b, "fix": c or None} for a, b, c in zip(names, states, fixes)],
+}, indent=2))
+PY
+  else
+    bold "carcode doctor"
+    for i in "${!names[@]}"; do
+      case "${states[$i]}" in
+        ok) ok "${names[$i]}" ;;
+        optional) printf '  \033[33m-\033[0m %s  →  %s\n' "${names[$i]}" "${fixes[$i]}" ;;
+        *) bad "${names[$i]}  →  ${fixes[$i]}" ;;
+      esac
+    done
+    echo
+    (( failed )) && echo "Fix the ✗ items above, then run ./carcode doctor again." || echo "All set. Say \"Hey Siri, $NAME\" or run ./carcode talk."
+  fi
+  return $failed
+}
+
+cmd_talk() { python3 talk.py "$@"; }
+
+cmd_update() {
+  git pull --ff-only
+  if launchctl print "gui/$UID_/$LABEL.server" >/dev/null 2>&1; then cmd_restart; fi
+  echo "Updated to $(git rev-parse --short HEAD)."
+}
+
 cmd_ui()   { local u; u="$(url)"; [[ -n "$u" ]] || u="http://127.0.0.1:$PORT"; open "$u/ui#t=$(token)"; }
 cmd_logs() { tail -n 50 -f "$DATA/server.log"; }
 
 cmd_help() {
   cat <<EOF
-carcode: hands-free Claude Code from CarPlay
+carcode $VERSION: hands-free Claude Code from CarPlay
 
   ./carcode setup       check requirements, create token and .env
+                        (--workdir DIR --name NAME --title TITLE --language en-US)
   ./carcode install     run in the background (starts at login, restarts on crash)
   ./carcode shortcut    build the Siri Shortcut for the current URL and open it
   ./carcode status      show services, URL and dashboard link
-  ./carcode say "..."   talk to $NAME from the terminal
+  ./carcode talk        talk to $NAME out loud in this terminal (no phone needed)
+  ./carcode say "..."   send one message and print the reply
+  ./carcode doctor      check the whole setup and show how to fix problems (--json)
   ./carcode ui          open the live conversation dashboard
   ./carcode logs        follow the server log
   ./carcode restart     restart the server (keeps the URL)
   ./carcode start       run in the foreground instead of installing
   ./carcode uninstall   stop and remove the background services
+  ./carcode update      pull the latest version and restart
+  ./carcode version     print the version
 EOF
 }
 
 case "${1:-help}" in
-  setup|start|install|uninstall|restart|status|shortcut|ui|logs|help) "cmd_$1" ;;
+  start|install|uninstall|restart|status|shortcut|ui|logs|update|help) "cmd_$1" ;;
+  setup|doctor|talk) cmd="$1"; shift; "cmd_$cmd" "$@" ;;
   say) shift; cmd_say "$@" ;;
+  version|--version|-v) echo "carcode $VERSION" ;;
   url) url ;;
   token) token ;;
   *) cmd_help; exit 1 ;;

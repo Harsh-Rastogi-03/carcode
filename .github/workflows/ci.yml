@@ -16,4 +16,4 @@ jobs:
       - name: Test
         run: uv run --group dev pytest -q
       - name: Shell scripts
-        run: bash -n carcode run_server.sh run_tunnel.sh
+        run: bash -n carcode install.sh run_server.sh run_tunnel.sh
