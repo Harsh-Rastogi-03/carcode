@@ -17,3 +17,5 @@ jobs:
         run: uv run --group dev pytest -q
       - name: Shell scripts
         run: bash -n carcode install.sh run_server.sh run_tunnel.sh
+      - name: npm launcher
+        run: node --check bin/carcode.js && npm pack --dry-run

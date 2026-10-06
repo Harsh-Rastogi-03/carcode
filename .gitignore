@@ -6,3 +6,5 @@ __pycache__/
 .ruff_cache/
 *.local.md
 .DS_Store
+carcode-*.tgz
+node_modules/

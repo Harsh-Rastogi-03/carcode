@@ -1,0 +1,32 @@
+{
+  "name": "carcode",
+  "version": "1.1.0",
+  "description": "Talk to Claude Code from your car. Say \"Hey Siri, Jarvis\" to review PRs, read Slack and ship code hands-free on CarPlay.",
+  "keywords": ["claude-code", "claude", "anthropic", "carplay", "siri", "siri-shortcuts", "voice-assistant", "ai-agents", "hands-free", "macos", "developer-tools"],
+  "homepage": "https://www.harshrastogi.tech/projects/carcode",
+  "bugs": "https://github.com/Harsh-Rastogi-03/carcode/issues",
+  "repository": { "type": "git", "url": "git+https://github.com/Harsh-Rastogi-03/carcode.git" },
+  "license": "MIT",
+  "author": "Harsh Rastogi (https://www.harshrastogi.tech)",
+  "bin": { "carcode": "bin/carcode.js" },
+  "os": ["darwin"],
+  "engines": { "node": ">=18" },
+  "files": [
+    "bin/",
+    "carcode",
+    "install.sh",
+    "run_server.sh",
+    "run_tunnel.sh",
+    "server.py",
+    "talk.py",
+    "make_shortcut.py",
+    "ui.html",
+    "prompts/assistant.md",
+    ".env.example",
+    "pyproject.toml",
+    "uv.lock",
+    "AGENTS.md",
+    "LICENSE",
+    "README.md"
+  ]
+}

@@ -23,19 +23,21 @@ yourself; stop and ask the user only where it says **Ask the user** or **Hand ov
 4. **Run the installer** with their answers:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/Harsh-Rastogi-03/carcode/main/install.sh \
-     | bash -s -- --yes --workdir "<repos folder>" --name "<name>" --title "<title>"
+   npx --yes carcode --yes --workdir "<repos folder>" --name "<name>" --title "<title>"
    ```
 
-   It installs into `~/carcode` (change with `--dir`), installs `uv`/`cloudflared` with Homebrew
-   if missing, starts two background services (server and tunnel) with launchd, and builds the
-   signed Siri Shortcut, opening it in the Shortcuts app.
+   If Node isn't available, use the same flags with the shell installer:
+   `curl -fsSL https://raw.githubusercontent.com/Harsh-Rastogi-03/carcode/main/install.sh | bash -s -- --yes --workdir "<repos folder>" --name "<name>" --title "<title>"`.
 
-5. **Verify** with `cd ~/carcode && ./carcode doctor --json`. `"ready": true` means everything
+   It installs `uv`/`cloudflared` with Homebrew if missing, keeps carcode in `~/.carcode` (npm)
+   or `~/carcode` (curl), starts two background services (server and tunnel) with launchd, and
+   builds the signed Siri Shortcut, opening it in the Shortcuts app.
+
+5. **Verify** with `npx carcode doctor --json` (or `./carcode doctor --json` in a clone). `"ready": true` means everything
    works. For any check that is not `ok`, run its `fix` command, then run doctor again. The public
    URL can take up to 30 seconds after install; wait and retry once before reporting a problem.
 
-6. **Smoke test** with `./carcode say "what can you do?"` and read the reply to the user.
+6. **Smoke test** with `npx carcode say "what can you do?"` and read the reply to the user.
 
 7. **Hand over** the two steps only a person can do:
    - In the Shortcuts window that opened, click **Add Shortcut**. It syncs to the iPhone through
@@ -44,12 +46,14 @@ yourself; stop and ask the user only where it says **Ask the user** or **Hand ov
      **Siri Responses** to **Prefer Spoken Responses**. Optionally **Accessibility → Siri → Siri
      Pause Time → Longest**.
 
-   Then tell them to say **"Hey Siri, <name>"**, and that `./carcode talk` lets them try it out
-   loud in the terminal right now, without a phone.
+   Then tell them to say **"Hey Siri, <name>"**, and that `npx carcode talk` lets them try it
+   out loud in the terminal right now, without a phone.
 
 ## Operate
 
-| Task | Command (run in the carcode folder) |
+Use `npx carcode <command>` from anywhere for npm installs, or `./carcode <command>` in a clone.
+
+| Task | Command |
 |---|---|
 | Health check (machine-readable) | `./carcode doctor --json` |
 | Services, URL and dashboard link | `./carcode status` |
@@ -57,10 +61,11 @@ yourself; stop and ask the user only where it says **Ask the user** or **Hand ov
 | Conversation in the terminal | `./carcode talk` (`--quiet` to skip speech) |
 | Rebuild the shortcut after the URL changes | `./carcode shortcut` |
 | Follow the log | `./carcode logs` |
-| Update to the latest version | `./carcode update` |
+| Update to the latest version | `npx carcode@latest update` (or `./carcode update` in a clone) |
 | Stop and remove the services | `./carcode uninstall` |
 
-Settings live in `.env` (see `.env.example`). After editing it, run `./carcode restart`.
+Settings live in `.env` in the carcode folder (`npx carcode where` prints it). After editing it,
+run `./carcode restart`.
 
 ## Rules
 

@@ -11,6 +11,7 @@ PORT="${PORT:-8787}"
 LABEL="${CARCODE_LABEL:-dev.carcode}"
 NAME="${CARCODE_NAME:-Jarvis}"
 AGENTS="$HOME/Library/LaunchAgents"
+CMD="${CARCODE_CMD:-./carcode}"   # how the user runs carcode, for the hints we print
 UID_="$(id -u)"
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
@@ -92,14 +93,14 @@ cmd_setup() {
   echo
   bold "Next"
   [[ -z "$workdir" ]] && echo "  - Edit .env: set CARCODE_WORKDIR to the folder that holds your repos (or rerun with --workdir)."
-  echo "  - ./carcode install     # runs carcode in the background, starts at login"
-  echo "  - ./carcode talk        # try it by voice in this terminal, no phone needed"
-  echo "  - ./carcode shortcut    # creates the Siri Shortcut and opens it"
+  echo "  - $CMD install     # runs carcode in the background, starts at login"
+  echo "  - $CMD talk        # try it by voice in this terminal, no phone needed"
+  echo "  - $CMD shortcut    # creates the Siri Shortcut and opens it"
 }
 
 cmd_start() {
   ensure_token
-  echo "Running in the foreground. Ctrl+C stops it. For background use: ./carcode install"
+  echo "Running in the foreground. Ctrl+C stops it. For background use: $CMD install"
   ./run_tunnel.sh & local tunnel=$!
   trap 'kill $tunnel 2>/dev/null' EXIT INT TERM
   ./run_server.sh
@@ -172,7 +173,7 @@ cmd_status() {
 }
 
 cmd_shortcut() {
-  [[ -n "$(url)" ]] || die "No tunnel URL yet. Run ./carcode install (or ./carcode start) first."
+  [[ -n "$(url)" ]] || die "No tunnel URL yet. Run $CMD install (or $CMD start) first."
   local file; file="$(python3 make_shortcut.py)"
   echo "Created $file"
   echo "Opening it: click Add Shortcut. Delete any older '$NAME' shortcut first so Siri doesn't pick a duplicate."
@@ -207,14 +208,14 @@ cmd_doctor() {
   check "claude (Claude Code)" required "curl -fsSL https://claude.ai/install.sh | bash, then run: claude (and log in)" -- command -v claude
   check "cloudflared"         required "brew install cloudflared" -- command -v cloudflared
   check "gh (GitHub CLI)"     optional "brew install gh && gh auth login" -- command -v gh
-  check ".env settings"       required "./carcode setup" -- test -f .env
-  check "repos folder"        required "./carcode setup --workdir ~/path/to/your/repos" -- test -n "$wd" -a -d "$wd"
-  check "access token"        required "./carcode setup" -- test -s "$DATA/token"
-  check "server service"      required "./carcode install" -- bash -c "launchctl print gui/$UID_/$LABEL.server | grep -q 'state = running'"
-  check "tunnel service"      required "./carcode install" -- bash -c "launchctl print gui/$UID_/$LABEL.tunnel | grep -q 'state = running'"
-  check "server answers"      required "./carcode restart, then ./carcode logs" -- curl -sf -m 3 "http://127.0.0.1:$PORT/health"
-  check "public URL works"    required "./carcode install (the tunnel may be restarting; wait 30s)" -- curl -sf -m 8 "${u:-http://invalid}/health"
-  check "Siri Shortcut built" optional "./carcode shortcut" -- test -f "$DATA/$NAME.shortcut"
+  check ".env settings"       required "$CMD setup" -- test -f .env
+  check "repos folder"        required "$CMD setup --workdir ~/path/to/your/repos" -- test -n "$wd" -a -d "$wd"
+  check "access token"        required "$CMD setup" -- test -s "$DATA/token"
+  check "server service"      required "$CMD install" -- bash -c "launchctl print gui/$UID_/$LABEL.server | grep -q 'state = running'"
+  check "tunnel service"      required "$CMD install" -- bash -c "launchctl print gui/$UID_/$LABEL.tunnel | grep -q 'state = running'"
+  check "server answers"      required "$CMD restart, then $CMD logs" -- curl -sf -m 3 "http://127.0.0.1:$PORT/health"
+  check "public URL works"    required "$CMD install (the tunnel may be restarting; wait 30s)" -- curl -sf -m 8 "${u:-http://invalid}/health"
+  check "Siri Shortcut built" optional "$CMD shortcut" -- test -f "$DATA/$NAME.shortcut"
 
   local failed=0 i
   for i in "${!names[@]}"; do [[ "${states[$i]}" == required ]] && failed=1; done
@@ -239,7 +240,7 @@ PY
       esac
     done
     echo
-    (( failed )) && echo "Fix the ✗ items above, then run ./carcode doctor again." || echo "All set. Say \"Hey Siri, $NAME\" or run ./carcode talk."
+    (( failed )) && echo "Fix the ✗ items above, then run $CMD doctor again." || echo "All set. Say \"Hey Siri, $NAME\" or run $CMD talk."
   fi
   return $failed
 }
@@ -247,9 +248,17 @@ PY
 cmd_talk() { python3 talk.py "$@"; }
 
 cmd_update() {
-  git pull --ff-only
+  if [[ -d .git ]]; then
+    git pull --ff-only
+    echo "Updated to $(git rev-parse --short HEAD)."
+  else
+    echo "This copy was installed with npm. Update with: npx carcode@latest update"
+  fi
+  cmd_restart_if_installed
+}
+
+cmd_restart_if_installed() {
   if launchctl print "gui/$UID_/$LABEL.server" >/dev/null 2>&1; then cmd_restart; fi
-  echo "Updated to $(git rev-parse --short HEAD)."
 }
 
 cmd_ui()   { local u; u="$(url)"; [[ -n "$u" ]] || u="http://127.0.0.1:$PORT"; open "$u/ui#t=$(token)"; }
@@ -259,26 +268,27 @@ cmd_help() {
   cat <<EOF
 carcode $VERSION: hands-free Claude Code from CarPlay
 
-  ./carcode setup       check requirements, create token and .env
+  $CMD setup       check requirements, create token and .env
                         (--workdir DIR --name NAME --title TITLE --language en-US)
-  ./carcode install     run in the background (starts at login, restarts on crash)
-  ./carcode shortcut    build the Siri Shortcut for the current URL and open it
-  ./carcode status      show services, URL and dashboard link
-  ./carcode talk        talk to $NAME out loud in this terminal (no phone needed)
-  ./carcode say "..."   send one message and print the reply
-  ./carcode doctor      check the whole setup and show how to fix problems (--json)
-  ./carcode ui          open the live conversation dashboard
-  ./carcode logs        follow the server log
-  ./carcode restart     restart the server (keeps the URL)
-  ./carcode start       run in the foreground instead of installing
-  ./carcode uninstall   stop and remove the background services
-  ./carcode update      pull the latest version and restart
-  ./carcode version     print the version
+  $CMD install     run in the background (starts at login, restarts on crash)
+  $CMD shortcut    build the Siri Shortcut for the current URL and open it
+  $CMD status      show services, URL and dashboard link
+  $CMD talk        talk to $NAME out loud in this terminal (no phone needed)
+  $CMD say "..."   send one message and print the reply
+  $CMD doctor      check the whole setup and show how to fix problems (--json)
+  $CMD ui          open the live conversation dashboard
+  $CMD logs        follow the server log
+  $CMD restart     restart the server (keeps the URL)
+  $CMD start       run in the foreground instead of installing
+  $CMD uninstall   stop and remove the background services
+  $CMD update      pull the latest version and restart
+  $CMD version     print the version
 EOF
 }
 
 case "${1:-help}" in
   start|install|uninstall|restart|status|shortcut|ui|logs|update|help) "cmd_$1" ;;
+  restart-if-installed) cmd_restart_if_installed ;;
   setup|doctor|talk) cmd="$1"; shift; "cmd_$cmd" "$@" ;;
   say) shift; cmd_say "$@" ;;
   version|--version|-v) echo "carcode $VERSION" ;;
