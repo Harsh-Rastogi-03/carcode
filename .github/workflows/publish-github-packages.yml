@@ -1,0 +1,32 @@
+name: Publish to GitHub Packages
+
+# Mirrors the npm package to GitHub Packages so it shows on the repo's Packages page.
+# npmjs.com stays the main install (npx carcode-cli); GitHub requires a scoped name here.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@harsh-rastogi-03"
+      - name: Use the GitHub Packages name
+        run: |
+          npm pkg set name="@harsh-rastogi-03/carcode"
+          npm pkg set publishConfig.registry="https://npm.pkg.github.com"
+          npm pkg delete os   # the runner is Linux; the package itself still checks for macOS at run time
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
