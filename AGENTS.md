@@ -23,7 +23,7 @@ yourself; stop and ask the user only where it says **Ask the user** or **Hand ov
 4. **Run the installer** with their answers:
 
    ```bash
-   npx --yes carcode --yes --workdir "<repos folder>" --name "<name>" --title "<title>"
+   npx --yes carcode-cli --yes --workdir "<repos folder>" --name "<name>" --title "<title>"
    ```
 
    If Node isn't available, use the same flags with the shell installer:
@@ -33,11 +33,11 @@ yourself; stop and ask the user only where it says **Ask the user** or **Hand ov
    or `~/carcode` (curl), starts two background services (server and tunnel) with launchd, and
    builds the signed Siri Shortcut, opening it in the Shortcuts app.
 
-5. **Verify** with `npx carcode doctor --json` (or `./carcode doctor --json` in a clone). `"ready": true` means everything
+5. **Verify** with `npx carcode-cli doctor --json` (or `./carcode doctor --json` in a clone). `"ready": true` means everything
    works. For any check that is not `ok`, run its `fix` command, then run doctor again. The public
    URL can take up to 30 seconds after install; wait and retry once before reporting a problem.
 
-6. **Smoke test** with `npx carcode say "what can you do?"` and read the reply to the user.
+6. **Smoke test** with `npx carcode-cli say "what can you do?"` and read the reply to the user.
 
 7. **Hand over** the two steps only a person can do:
    - In the Shortcuts window that opened, click **Add Shortcut**. It syncs to the iPhone through
@@ -46,12 +46,12 @@ yourself; stop and ask the user only where it says **Ask the user** or **Hand ov
      **Siri Responses** to **Prefer Spoken Responses**. Optionally **Accessibility → Siri → Siri
      Pause Time → Longest**.
 
-   Then tell them to say **"Hey Siri, <name>"**, and that `npx carcode talk` lets them try it
+   Then tell them to say **"Hey Siri, <name>"**, and that `npx carcode-cli talk` lets them try it
    out loud in the terminal right now, without a phone.
 
 ## Operate
 
-Use `npx carcode <command>` from anywhere for npm installs, or `./carcode <command>` in a clone.
+Use `npx carcode-cli <command>` from anywhere for npm installs, or `./carcode <command>` in a clone.
 
 | Task | Command |
 |---|---|
@@ -61,10 +61,10 @@ Use `npx carcode <command>` from anywhere for npm installs, or `./carcode <comma
 | Conversation in the terminal | `./carcode talk` (`--quiet` to skip speech) |
 | Rebuild the shortcut after the URL changes | `./carcode shortcut` |
 | Follow the log | `./carcode logs` |
-| Update to the latest version | `npx carcode@latest update` (or `./carcode update` in a clone) |
+| Update to the latest version | `npx carcode-cli@latest update` (or `./carcode update` in a clone) |
 | Stop and remove the services | `./carcode uninstall` |
 
-Settings live in `.env` in the carcode folder (`npx carcode where` prints it). After editing it,
+Settings live in `.env` in the carcode folder (`npx carcode-cli where` prints it). After editing it,
 run `./carcode restart`.
 
 ## Rules

@@ -252,7 +252,7 @@ cmd_update() {
     git pull --ff-only
     echo "Updated to $(git rev-parse --short HEAD)."
   else
-    echo "This copy was installed with npm. Update with: npx carcode@latest update"
+    echo "This copy was installed with npm. Update with: npx carcode-cli@latest update"
   fi
   cmd_restart_if_installed
 }

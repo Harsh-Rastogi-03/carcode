@@ -1,5 +1,5 @@
 {
-  "name": "carcode",
+  "name": "carcode-cli",
   "version": "1.1.0",
   "description": "Talk to Claude Code from your car. Say \"Hey Siri, Jarvis\" to review PRs, read Slack and ship code hands-free on CarPlay.",
   "keywords": ["claude-code", "claude", "anthropic", "carplay", "siri", "siri-shortcuts", "voice-assistant", "ai-agents", "hands-free", "macos", "developer-tools"],

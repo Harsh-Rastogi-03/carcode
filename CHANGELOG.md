@@ -2,8 +2,8 @@
 
 ## 1.1.0
 
-- **On npm.** `npx carcode` runs the guided installer; `npx carcode <command>` runs any command
-  from anywhere. Files live in `~/.carcode`, and `npx carcode@latest update` upgrades without
+- **On npm.** `npx carcode-cli` runs the guided installer; `npx carcode-cli <command>` runs any command
+  from anywhere. Files live in `~/.carcode`, and `npx carcode-cli@latest update` upgrades without
   touching your settings or token.
 - **One-line installer.** `curl -fsSL https://raw.githubusercontent.com/Harsh-Rastogi-03/carcode/main/install.sh | bash`
   checks your Mac, offers to install missing tools, configures carcode, starts it and builds the
