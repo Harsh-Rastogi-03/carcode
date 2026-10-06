@@ -23,6 +23,8 @@ NAME=""
 TITLE=""
 YES=0
 SHORTCUT=1
+SOURCE=""          # set by the npm launcher: use this copy instead of cloning
+CMD="${CARCODE_CMD:-}"
 
 while (( $# )); do
   case "$1" in
@@ -32,6 +34,7 @@ while (( $# )); do
     --title)       TITLE="$2"; shift 2 ;;
     --yes|-y)      YES=1; shift ;;
     --no-shortcut) SHORTCUT=0; shift ;;
+    --source)      SOURCE="$2"; shift 2 ;;
     -h|--help)     sed -n '2,19p' "$0" 2>/dev/null || true; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
@@ -88,12 +91,17 @@ fi
 command -v gh >/dev/null && ok "gh (GitHub CLI)" || echo "  - gh not found (optional, for GitHub questions): brew install gh && gh auth login"
 
 step "2/5  Getting carcode"
-if [[ -d "$DIR/.git" ]]; then
+if [[ -n "$SOURCE" ]]; then
+  DIR="$SOURCE"
+  ok "using $DIR"
+elif [[ -d "$DIR/.git" ]]; then
   git -C "$DIR" pull --ff-only --quiet && ok "updated $DIR"
 else
   git clone --quiet "$REPO" "$DIR" && ok "cloned into $DIR"
 fi
 cd "$DIR"
+[[ -n "$CMD" ]] || CMD="cd $DIR && ./carcode"
+export CARCODE_CMD="${CARCODE_CMD:-./carcode}"
 
 step "3/5  Your settings"
 default_workdir="$HOME/code"
@@ -117,11 +125,15 @@ fi
 
 bold "
 Done. Two things only you can do:"
-echo "  1. In the window that opened, click \"Add Shortcut\". It syncs to your iPhone in about a minute."
+if (( SHORTCUT )); then
+  echo "  1. In the Shortcuts window that opened, click \"Add Shortcut\". It syncs to your iPhone in about a minute."
+else
+  echo "  1. Build the Siri Shortcut when you're ready: $CMD shortcut, then click \"Add Shortcut\"."
+fi
 echo "  2. On your iPhone: Settings → Siri → turn on \"Allow Siri When Locked\" and"
 echo "     Siri Responses → \"Prefer Spoken Responses\"."
 echo
 echo "Then say: \"Hey Siri, $NAME\""
 echo
-echo "Try it right now without a phone:  cd $DIR && ./carcode talk"
-echo "Check the setup any time:         cd $DIR && ./carcode doctor"
+echo "Try it right now without a phone:  $CMD talk"
+echo "Check the setup any time:         $CMD doctor"
