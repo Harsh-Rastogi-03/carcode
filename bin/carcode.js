@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carcode launcher for npm: `npx carcode` installs carcode, `npx carcode <command>` runs it.
+// carcode launcher for npm: `npx carcode-cli` installs carcode, `npx carcode-cli <command>` runs it.
 //
 // carcode itself is a small Python server plus a bash CLI. The background services
 // need a folder that doesn't move, so this launcher keeps a copy in ~/.carcode
@@ -58,7 +58,7 @@ function run(file, args, extraEnv = {}) {
   const result = spawnSync("bash", [path.join(HOME, file), ...args], {
     cwd: HOME,
     stdio: "inherit",
-    env: { ...process.env, CARCODE_CMD: "npx carcode", ...extraEnv },
+    env: { ...process.env, CARCODE_CMD: "npx carcode-cli", ...extraEnv },
   });
   if (result.error) fail(result.error.message);
   return result.status ?? 1;
@@ -73,7 +73,7 @@ function main() {
   const previous = installedVersion();
   const changed = sync();
 
-  // `npx carcode` or `npx carcode --yes --workdir ~/code`: run the guided installer.
+  // `npx carcode-cli` or `npx carcode-cli --yes --workdir ~/code`: run the guided installer.
   if (!first || first === "init" || first.startsWith("-")) {
     const installerArgs = first === "init" ? args.slice(1) : args;
     process.exit(run("install.sh", ["--source", HOME, ...installerArgs]));
@@ -81,7 +81,7 @@ function main() {
 
   if (first === "update") {
     if (changed && previous) console.log(`Updated carcode ${previous} → ${VERSION}.`);
-    else console.log(`carcode ${VERSION} is current. For the newest release run: npx carcode@latest update`);
+    else console.log(`carcode ${VERSION} is current. For the newest release run: npx carcode-cli@latest update`);
     process.exit(run("carcode", ["restart-if-installed"]));
   }
 

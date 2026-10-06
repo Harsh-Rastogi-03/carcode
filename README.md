@@ -20,7 +20,7 @@
 You need a Mac that stays on while you drive, [Claude Code](https://docs.claude.com/en/docs/claude-code) installed and logged in, and an iPhone on the same iCloud account.
 
 ```bash
-npx carcode
+npx carcode-cli
 ```
 
 The installer checks your Mac, offers to install `uv` and `cloudflared` with Homebrew, asks which folder holds your repos, starts carcode in the background and builds your Siri Shortcut. It takes about two minutes. No Node? Use `curl -fsSL https://raw.githubusercontent.com/Harsh-Rastogi-03/carcode/main/install.sh | bash` instead.
@@ -32,7 +32,7 @@ Install carcode for me: https://github.com/Harsh-Rastogi-03/carcode
 Follow the steps in its AGENTS.md.
 ```
 
-The agent asks for your repos folder and a name, runs the installer, checks everything with `npx carcode doctor`, and hands you the two steps only you can do.
+The agent asks for your repos folder and a name, runs the installer, checks everything with `npx carcode-cli doctor`, and hands you the two steps only you can do.
 
 **Then, two things by hand:**
 
@@ -60,7 +60,7 @@ git clone https://github.com/Harsh-Rastogi-03/carcode.git && cd carcode
 ## Try it without a car
 
 ```bash
-npx carcode talk
+npx carcode-cli talk
 ```
 
 Type what you'd say in the car. carcode answers out loud in your terminal with the Mac's voice, and handles long jobs the same way the Shortcut does: *"One moment"*, then the answer when it's ready. Add `--quiet` to read instead of listen.
@@ -123,7 +123,7 @@ How it speaks, confirms and stays safe is in [`prompts/assistant.md`](prompts/as
 
 ## Commands
 
-Run them as `npx carcode <command>` from anywhere, or `./carcode <command>` inside a git clone. npm installs keep their files in `~/.carcode`, and `npx carcode@latest update` upgrades without touching your settings or token.
+Run them as `npx carcode-cli <command>` from anywhere, or `./carcode <command>` inside a git clone. npm installs keep their files in `~/.carcode`, and `npx carcode-cli@latest update` upgrades without touching your settings or token.
 
 | Command | What it does |
 |---|---|
@@ -137,7 +137,7 @@ Run them as `npx carcode <command>` from anywhere, or `./carcode <command>` insi
 | `./carcode setup` | Checks requirements, creates the token and `.env` (`--workdir`, `--name`, `--title`, `--language`) |
 | `./carcode install` / `uninstall` | Starts or removes the background services |
 | `./carcode restart` | Restarts the server (the URL stays the same) |
-| `./carcode update` | Upgrades and restarts (`npx carcode@latest update` for npm installs) |
+| `./carcode update` | Upgrades and restarts (`npx carcode-cli@latest update` for npm installs) |
 | `./carcode start` | Runs in the foreground instead of installing |
 
 The **live dashboard** link from `./carcode status` shows what you said, what it answered and how long it took. Open it on your iPhone and tap **Share → Add to Home Screen** for a full-screen app. CarPlay only allows Apple-approved apps on the car's screen, so the dashboard lives on your phone.
@@ -207,7 +207,7 @@ uv run --group dev ruff check .
 |---|---|
 | `server.py` | The FastAPI server: sessions, timing, half-sentence joining, dashboard API |
 | `carcode` | The command-line tool: setup, install, doctor, talk, shortcut, … |
-| `install.sh` | The guided installer (used by `npx carcode` and the curl one-liner) |
+| `install.sh` | The guided installer (used by `npx carcode-cli` and the curl one-liner) |
 | `bin/carcode.js` | The npm launcher: keeps a copy in `~/.carcode` and runs the CLI |
 | `talk.py` | The terminal voice client behind `./carcode talk` |
 | `make_shortcut.py` | Builds and signs the Siri Shortcut |
