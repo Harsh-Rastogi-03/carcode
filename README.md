@@ -8,6 +8,8 @@
   <a href="https://github.com/Harsh-Rastogi-03/carcode/actions/workflows/ci.yml"><img src="https://github.com/Harsh-Rastogi-03/carcode/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/server-macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS">
   <img src="https://img.shields.io/badge/works_with-Claude_Code-000000?style=flat-square&logo=anthropic&logoColor=white" alt="Works with Claude Code">
+  <a href="https://www.npmjs.com/package/carcode-cli"><img src="https://img.shields.io/npm/v/carcode-cli?style=flat-square&color=000000&label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/carcode-cli"><img src="https://img.shields.io/npm/dm/carcode-cli?style=flat-square&color=000000&label=downloads" alt="npm downloads"></a>
   <img src="https://img.shields.io/badge/license-MIT-000000?style=flat-square" alt="MIT">
 </p>
 
