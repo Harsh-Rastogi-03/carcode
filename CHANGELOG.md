@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- **New home page.** carcode now has its own page at
+  [harshrastogi.tech/carcode](https://www.harshrastogi.tech/carcode), with a live demo you can
+  listen to. The npm package and README point there.
+
 ## 1.1.0
 
 - **On npm.** `npx carcode-cli` runs the guided installer; `npx carcode-cli <command>` runs any command

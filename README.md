@@ -1,7 +1,7 @@
 <img src="assets/carcode-banner.svg" alt="carcode: talk to Claude Code from your car" width="100%">
 
 <p align="center">
-  <a href="#install"><b>Install</b></a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#try-it-without-a-car">Try it without a car</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#what-you-can-ask">What you can ask</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#how-it-works">How it works</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#safety">Safety</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="https://www.harshrastogi.tech/blog/code-from-your-car-claude-code-carplay">The story</a>
+  <a href="#install"><b>Install</b></a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#try-it-without-a-car">Try it without a car</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#what-you-can-ask">What you can ask</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#how-it-works">How it works</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#safety">Safety</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="https://www.harshrastogi.tech/carcode"><b>Website</b></a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="https://www.harshrastogi.tech/blog/code-from-your-car-claude-code-carplay">The story</a>
 </p>
 
 <p align="center">
