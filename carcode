@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # carcode: hands-free Claude Code from CarPlay. Run ./carcode help for commands.
 set -euo pipefail
-VERSION="1.1.1"
+VERSION="1.2.0"
 cd "$(dirname "$0")"
 ROOT="$PWD"
 DATA="$ROOT/data"

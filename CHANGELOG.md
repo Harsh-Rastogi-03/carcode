@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0
+
+- **Answers stay in step.** When Claude Code finished a background task, its extra reply sat
+  unread and every later answer came one question late. carcode now clears it before each new
+  question, and the dashboard shows it as "finished in background".
+- **Fewer cut-offs.** More half-sentences are held with "Go on." and joined with what you say
+  next: endings like "the latest", "currently", "what you" or "did I", and a lone verb such as
+  "Ask" or "Read".
+- **Dashboard shows the joins.** Held half-sentences are marked, and joined turns show the full
+  sentence that was sent to Claude Code.
+- **A URL that never changes.** Set `CARCODE_TUNNEL_NAME` and `CARCODE_TUNNEL_HOSTNAME` to run a
+  named Cloudflare tunnel on your own domain, so the URL and the Siri Shortcut survive restarts.
+
 ## 1.1.1
 
 - **New home page.** carcode now has its own page at
