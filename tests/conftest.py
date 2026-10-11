@@ -29,6 +29,7 @@ def client():
 
     server.devices.clear()
     server.HISTORY.clear()
+    server.HISTORY_FILE.unlink(missing_ok=True)
     server.STATE_FILE.unlink(missing_ok=True)
     with TestClient(server.app) as c:
         yield c

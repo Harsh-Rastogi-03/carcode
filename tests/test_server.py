@@ -111,6 +111,44 @@ def test_dashboard_shows_joined_and_background_turns(client, say):
     assert turns[4]["speak"] == "You said: next"
 
 
+
+def test_history_is_saved_with_its_session(client, say):
+    say("hello")
+    saved = [json.loads(line) for line in server.HISTORY_FILE.read_text().splitlines()]
+    assert saved[-1]["heard"] == "hello"
+    assert saved[-1]["session"] == json.loads(server.STATE_FILE.read_text())["phone"]
+    server.HISTORY.clear()
+    server.load_history()
+    assert saved == server.HISTORY
+
+
+def test_earlier_sessions_are_imported_from_transcripts(tmp_path, monkeypatch):
+    monkeypatch.setattr(server, "CLAUDE_PROJECTS", tmp_path)
+    folder = tmp_path / server.re.sub(r"[^A-Za-z0-9]", "-", str(server.WORKDIR))
+    folder.mkdir()
+
+    def event(kind, ts, content, **extra):
+        return json.dumps({"type": kind, "timestamp": f"2026-10-02T08:00:{ts:02d}Z",
+                           "message": {"content": content}, **extra})
+
+    text = lambda t: [{"type": "text", "text": t}]  # noqa: E731
+    (folder / "car.jsonl").write_text("\n".join([
+        event("user", 0, "what's on my calendar", entrypoint="sdk-cli"),
+        event("assistant", 3, text("Two **meetings**.")),
+        event("user", 9, "<task-notification>done</task-notification>", entrypoint="sdk-cli"),
+        event("assistant", 12, text("The review is done.")),
+    ]))
+    (folder / "desk.jsonl").write_text(event("user", 0, "refactor this", entrypoint="cli"))
+    server.STATE_FILE.write_text(json.dumps({"iphone": "car"}))
+
+    turns = server.import_transcripts()
+    assert [(t["heard"], t["speak"], t["device"], t["session"]) for t in turns] == [
+        ("what's on my calendar", "Two meetings.", "iphone", "car"),
+        ("", "The review is done.", "iphone", "car"),
+    ]
+    assert turns[0]["seconds"] == 3.0
+    assert turns[1]["kind"] == "background"
+
 @pytest.mark.parametrize(("text", "expected"), [
     ("Can you connect with", True),
     ("Can you tell me", True),

@@ -142,7 +142,7 @@ Run them as `npx carcode-cli <command>` from anywhere, or `./carcode <command>` 
 | `./carcode update` | Upgrades and restarts (`npx carcode-cli@latest update` for npm installs) |
 | `./carcode start` | Runs in the foreground instead of installing |
 
-The **live dashboard** link from `./carcode status` shows what you said, what it answered and how long it took. Open it on your iPhone and tap **Share → Add to Home Screen** for a full-screen app. CarPlay only allows Apple-approved apps on the car's screen, so the dashboard lives on your phone.
+The **live dashboard** link from `./carcode status` shows what you said, what it answered and how long it took, grouped by Claude Code session. History is kept in `data/history.jsonl`; on first start it is rebuilt from Claude Code's transcripts of earlier sessions. Open it on your iPhone and tap **Share → Add to Home Screen** for a full-screen app. CarPlay only allows Apple-approved apps on the car's screen, so the dashboard lives on your phone.
 
 ## Safety
 

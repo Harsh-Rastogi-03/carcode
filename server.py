@@ -23,8 +23,8 @@ import re
 import signal
 import subprocess
 import time
-from collections import deque
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -50,6 +50,9 @@ NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "")
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 
 STATE_FILE = DATA / "sessions.json"
+HISTORY_FILE = DATA / "history.jsonl"  # every turn, for the dashboard
+CLAUDE_HOME = Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude")).expanduser()
+CLAUDE_PROJECTS = CLAUDE_HOME / "projects"  # Claude Code's session transcripts
 LOG_DIR = DATA / "logs"
 PROMPT_FILE = ROOT / "prompts" / "assistant.md"
 CONTEXT_FILE = ROOT / "prompts" / "context.local.md"  # private, gitignored
@@ -114,7 +117,7 @@ class Device:
 
 
 devices: dict[str, Device] = {}
-HISTORY: deque[dict] = deque(maxlen=300)
+HISTORY: list[dict] = []
 
 
 # ---------- text helpers ----------
@@ -166,13 +169,81 @@ def save_state() -> None:
 
 
 def record(device: str, heard: str, reply: dict, seconds: float, note: dict | None = None) -> None:
-    """Keep recent turns in memory for the live dashboard."""
-    HISTORY.append({
-        "ts": time.time(), "device": device,
+    """Keep every turn for the dashboard, in memory and in data/history.jsonl."""
+    session = devices[device].session_id if device in devices else None
+    turn = {
+        "ts": time.time(), "device": device, "session": session,
         "heard": "" if heard == "__wait__" else heard,
         "speak": reply.get("speak", ""), "pending": bool(reply.get("pending")),
         "end": bool(reply.get("end")), "seconds": round(seconds, 1), **(note or {}),
-    })
+    }
+    HISTORY.append(turn)
+    HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with HISTORY_FILE.open("a") as f:
+        f.write(json.dumps(turn) + "\n")
+
+
+def load_history() -> None:
+    """Load saved turns; the first time, rebuild them from Claude Code's transcripts."""
+    if not HISTORY_FILE.exists():
+        turns = import_transcripts()
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        HISTORY_FILE.write_text("".join(json.dumps(t) + "\n" for t in turns))
+    HISTORY.clear()
+    for line in HISTORY_FILE.read_text().splitlines():
+        with contextlib.suppress(ValueError):
+            HISTORY.append(json.loads(line))
+
+
+def import_transcripts() -> list[dict]:
+    """Turns from the sessions carcode ran before history was saved.
+
+    Claude Code keeps a transcript per session under ~/.claude/projects/<workdir>. carcode's
+    runs are the headless ones (entrypoint "sdk-cli"); interactive sessions there are skipped.
+    """
+    folder = CLAUDE_PROJECTS / re.sub(r"[^A-Za-z0-9]", "-", str(WORKDIR))
+    owners: dict[str, str] = {}
+    for path in sorted(DATA.glob("sessions*.json")):
+        with contextlib.suppress(ValueError, OSError):
+            owners.update({sid: name for name, sid in json.loads(path.read_text()).items() if sid})
+    turns: list[dict] = []
+    for path in folder.glob("*.jsonl") if folder.is_dir() else []:
+        turns += transcript_turns(path, owners.get(path.stem, "earlier"))
+    return sorted(turns, key=lambda t: t["ts"])
+
+
+def transcript_turns(path: Path, device: str) -> list[dict]:
+    turns: list[dict] = []
+    current: dict | None = None
+    headless = False
+    for line in path.read_text(errors="replace").splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get("type") not in ("user", "assistant") or event.get("isSidechain"):
+            continue
+        try:
+            ts = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00")).timestamp()
+        except (KeyError, ValueError):
+            continue
+        content = event.get("message", {}).get("content")
+        if event["type"] == "user":
+            headless = headless or event.get("entrypoint") == "sdk-cli"
+            if isinstance(content, str) and not event.get("isMeta"):
+                unprompted = content.lstrip().startswith("<")  # a background task reporting back
+                current = {"ts": ts, "device": device, "session": path.stem,
+                           "heard": "" if unprompted else content, "speak": "", "pending": False,
+                           "end": False, "seconds": 0.0}
+                if unprompted:
+                    current["kind"] = "background"
+                turns.append(current)
+        elif current and isinstance(content, list):
+            text = " ".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
+            if text:
+                current["speak"] = to_speech(text)
+                current["seconds"] = round(ts - current["ts"], 1)
+    return [t for t in turns if t["heard"] or t["speak"]] if headless else []
 
 
 # ---------- Claude Code process ----------
@@ -320,6 +391,7 @@ async def finish_in_background(device: Device) -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     load_state()
+    load_history()
     for name, device in devices.items():  # warm up so the first turn in the car is fast
         await start_proc(device, name)
     yield

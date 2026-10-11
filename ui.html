@@ -63,7 +63,16 @@
 
   /* Conversations */
   .session { border: 1px solid var(--line); background: var(--panel); margin-bottom: 20px; }
-  .session-head { display: flex; justify-content: space-between; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); }
+  .session-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 12px 18px;
+    cursor: pointer; list-style: none; user-select: none; }
+  .session-head::-webkit-details-marker { display: none; }
+  .session-head:hover .label { color: var(--muted); }
+  .session[open] > .session-head { border-bottom: 1px solid var(--line); }
+  .chev { display: inline-block; margin-right: 8px; transition: transform .15s; }
+  .session[open] .chev { transform: rotate(90deg); }
+  .convo { display: flex; align-items: center; gap: 12px; margin: 8px 0 2px; }
+  .convo:first-child { margin-top: 0; }
+  .convo::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .lines { display: flex; flex-direction: column; gap: 10px; padding: 20px 18px 22px; }
   .you { align-self: flex-end; max-width: 82%; padding: 9px 14px; border-radius: 18px 18px 6px 18px;
     background: var(--you); font-size: 15.5px; overflow-wrap: anywhere; }
@@ -138,7 +147,7 @@ const dot = document.getElementById("dot");
 const headOrb = document.getElementById("headOrb");
 const workingEl = document.getElementById("working");
 const taskEl = document.getElementById("task");
-const SESSION_GAP = 10 * 60;  // seconds of silence that start a new conversation
+const CONVERSATION_GAP = 10 * 60;  // seconds of silence that start a new conversation
 
 // Token comes from the link (#t=...), never sent to the server in the URL.
 function readToken() {
@@ -169,18 +178,37 @@ const day = ts => {
 const orb = (px, fast) => `<span class="orb${fast ? " fast" : ""}" style="width:${px}px;height:${px}px"></span>`;
 const FILLER = /^(One moment|Still working|Go on|I didn't catch that)\.?$/;
 
-// Split turns into conversations: a goodbye or a long silence ends one.
+// Group turns by Claude Code session. A turn without one (a goodbye before the first
+// answer, say) belongs to the device's latest session.
 function sessions(turns) {
+  const byId = new Map(), latest = {};
+  turns.forEach((t, i) => {
+    const id = t.session || latest[t.device] || `${t.device}-new`;
+    latest[t.device] = id;
+    if (!byId.has(id)) byId.set(id, { id, device: t.device, items: [] });
+    byId.get(id).items.push([t, i]);
+  });
+  return [...byId.values()].sort((a, b) => a.items.at(-1)[0].ts - b.items.at(-1)[0].ts);
+}
+
+// Within a session, a goodbye or a long silence ends one conversation.
+function conversations(items) {
   const out = [];
   let cur = null;
-  turns.forEach((t, i) => {
-    if (!cur || t.ts - cur.last > SESSION_GAP) out.push(cur = { items: [], last: t.ts });
+  for (const [t, i] of items) {
+    if (!cur || t.ts - cur.last > CONVERSATION_GAP) out.push(cur = { items: [], last: t.ts });
     cur.items.push([t, i]);
     cur.last = t.ts;
     if (t.end) cur = null;
-  });
+  }
   return out;
 }
+
+const DEVICES = { iphone: "iPhone", terminal: "Terminal", earlier: "Earlier" };
+const opened = new Map();  // session id -> open, as the viewer left it
+root.addEventListener("toggle", e => {
+  if (e.target.dataset?.id) opened.set(e.target.dataset.id, e.target.open);
+}, true);
 
 function lines(t, isNew) {
   const cls = isNew ? " in" : "";
@@ -232,13 +260,21 @@ function render(data) {
   } else {
     const all = sessions(turns);
     feed = all.map((s, n) => {
-      const first = s.items[0][0];
-      const live = n === all.length - 1 && !s.items.at(-1)[0].end;
+      const latest = n === all.length - 1;
+      const open = opened.has(s.id) ? opened.get(s.id) : latest;
+      const first = s.items[0][0], last = s.items.at(-1)[0];
       const said = s.items.filter(([t]) => t.heard && t.kind !== "fragment").length;
-      const body = s.items.map(([t, i]) => lines(t, seen > 0 && i >= seen)).join("");
-      return `<section class="session"><div class="session-head"><span class="label">${day(first.ts)} · ${clock(first.ts)}</span>
-        <span class="label">${live ? "Live" : said + (said === 1 ? " turn" : " turns")}</span></div>
-        <div class="lines">${body}</div></section>`;
+      const span = day(first.ts) === day(last.ts) ? day(first.ts) : `${day(first.ts)} – ${day(last.ts)}`;
+      const body = conversations(s.items).map(c => {
+        const start = c.items[0][0].ts;
+        return `<div class="convo"><span class="label">${day(start)} · ${clock(start)}</span></div>` +
+          c.items.map(([t, i]) => lines(t, seen > 0 && i >= seen)).join("");
+      }).join("");
+      const name = s.id.includes("-new") ? "New session" : `Session ${s.id.slice(0, 8)}`;
+      return `<details class="session" data-id="${esc(s.id)}"${open ? " open" : ""}>
+        <summary class="session-head"><span class="label"><span class="chev">›</span>${name} · ${DEVICES[s.device] || esc(s.device)}</span>
+        <span class="label">${latest ? "Latest · " : ""}${span} · ${said} ${said === 1 ? "turn" : "turns"}</span></summary>
+        <div class="lines">${body}</div></details>`;
     }).join("");
   }
   seen = turns.length;
