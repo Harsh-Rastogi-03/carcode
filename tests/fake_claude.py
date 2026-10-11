@@ -2,7 +2,8 @@
 """Stands in for `claude -p --input-format stream-json --output-format stream-json`.
 
 Replies "You said: <text>". Words in the message change behaviour:
-"slow" waits 3 seconds, "crash" exits without answering.
+"slow" waits 3 seconds, "crash" exits without answering, "background" also sends a
+second, unprompted result (as Claude Code does when a background task finishes).
 """
 
 import json
@@ -23,3 +24,6 @@ for line in sys.stdin:
     print(json.dumps({"type": "assistant", "message": thinking}))
     print(json.dumps({"type": "result", "result": f"You said: **{text}**", "session_id": session,
                       "num_turns": 1}), flush=True)
+    if "background" in text:
+        print(json.dumps({"type": "result", "result": "Background task finished.",
+                          "session_id": session, "num_turns": 1}), flush=True)

@@ -37,6 +37,11 @@
     font-size: 19px; }
   .row { display: flex; }
   .row.right { justify-content: flex-end; }
+  .you.part { background: transparent; border: 1px dashed var(--line); color: var(--muted); }
+  .sent { font-size: 13px; color: var(--muted); margin: 6px 4px 0; text-align: right; }
+  .sent b { color: var(--accent); font-weight: 600; }
+  .bot.background { border-color: var(--accent); border-style: dashed; font-size: 17px; }
+  .tag.accent { color: var(--accent); border-color: var(--accent); }
   .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; margin-left: 8px;
     border: 1px solid var(--line); color: var(--muted); vertical-align: 2px; }
   #working { position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
@@ -98,10 +103,15 @@ function render(data) {
     feed.innerHTML = `<div class="empty"><big>Say "Hey Siri, {{name}}"</big>Your conversation shows up here as you talk.</div>`;
   } else {
     feed.innerHTML = turns.map(t => {
-      const tag = t.pending ? `<span class="tag">working</span>` : t.end ? `<span class="tag">ended</span>` : "";
-      const you = t.heard ? `<div class="row right"><div class="you">${esc(t.heard)}</div></div>` : "";
-      const reply = t.speak ? `<div class="row"><div class="bot">${esc(t.speak)}</div></div>` : "";
-      return `<div class="turn"><div class="meta">${time(t.ts)} · ${t.seconds}s${tag}</div>${you}${reply}</div>`;
+      const label = t.kind === "background" ? "finished in background"
+        : t.kind === "fragment" ? "waiting for the rest"
+        : t.joined ? "joined" : t.pending ? "working" : t.end ? "ended" : "";
+      const tag = label ? `<span class="tag${t.kind || t.joined ? " accent" : ""}">${label}</span>` : "";
+      const meta = t.kind === "background" ? time(t.ts) : `${time(t.ts)} · ${t.seconds}s`;
+      const you = t.heard ? `<div class="row right"><div class="you${t.kind === "fragment" ? " part" : ""}">${esc(t.heard)}</div></div>` : "";
+      const sent = t.joined ? `<div class="sent"><b>Sent:</b> ${esc(t.joined)}</div>` : "";
+      const reply = t.speak ? `<div class="row"><div class="bot${t.kind === "background" ? " background" : ""}">${esc(t.speak)}</div></div>` : "";
+      return `<div class="turn"><div class="meta">${meta}${tag}</div>${you}${sent}${reply}</div>`;
     }).join("");
   }
   const busy = data.working.length > 0;

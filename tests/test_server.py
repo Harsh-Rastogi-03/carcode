@@ -52,6 +52,12 @@ def test_half_sentence_is_joined_with_the_next(say):
     assert say("the weather in Delhi")["speak"] == "You said: Can you tell me the weather in Delhi"
 
 
+def test_unprompted_result_does_not_answer_the_next_question(say):
+    assert say("start a background job")["speak"] == "You said: start a background job"
+    time.sleep(0.2)
+    assert say("what time is it")["speak"] == "You said: what time is it"
+
+
 def test_slow_task_answers_pending_then_poll_returns_result(say):
     first = say("do a slow task")
     assert first == {"speak": "One moment.", "pending": "yes"}
@@ -92,11 +98,35 @@ def test_dashboard(client, say):
     assert turns[-1]["speak"] == "You said: hello"
 
 
+def test_dashboard_shows_joined_and_background_turns(client, say):
+    say("Can you tell me")
+    say("the weather")
+    say("start a background job")
+    time.sleep(0.2)
+    say("next")
+    turns = client.get("/api/history", headers={"X-Carcode-Token": TOKEN}).json()["turns"]
+    assert turns[0]["kind"] == "fragment"
+    assert turns[1]["joined"] == "Can you tell me the weather"
+    assert turns[3] == {**turns[3], "kind": "background", "speak": "Background task finished."}
+    assert turns[4]["speak"] == "You said: next"
+
+
 @pytest.mark.parametrize(("text", "expected"), [
     ("Can you connect with", True),
     ("Can you tell me", True),
     ("Check my PRs and", True),
     ("Hey", True),
+    ("What are you currently", True),
+    ("May I know what you", True),
+    ("What is the latest", True),
+    ("Check if I got", True),
+    ("Check latest message from", True),
+    ("Ask", True),
+    ("Read", True),
+    ("Slack", False),
+    ("Yes confirm", False),
+    ("Thank you", False),
+    ("Check Slack", False),
     ("GitHub", False),
     ("How are you", False),
     ("Confirm", False),

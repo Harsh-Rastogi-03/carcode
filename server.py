@@ -83,9 +83,14 @@ DANGLING_WORDS = set("""
 with to the a an and or of for about my on in at from that if but so is are was were
 can could would will should what how when where which who whose please your our their
 this these those into by than then also like as do does did plus because
+latest last recent current currently any some got get ask tell read find check show send give
 """.split())
 DANGLING_ENDINGS = ("tell me", "show me", "give me", "send me", "can you", "could you",
-                    "would you", "will you", "i want", "i need", "let me")
+                    "would you", "will you", "i want", "i need", "let me", "what you",
+                    "if you", "do you", "did you", "have you", "if i", "did i", "have i")
+# A lone verb ("Ask", "Read") is the start of a request, not the request.
+VERB_WORDS = {"ask", "read", "find", "check", "send", "open", "show", "tell", "get", "give",
+              "reply", "message", "create", "make", "write", "search", "list", "look", "draft"}
 STARTER_WORDS = {"can", "could", "would", "will", "what", "how", "when", "where", "which",
                  "who", "please", "tell", "show", "is", "are", "do", "does", "hey", "so"}
 FRAGMENT_TTL = 45.0
@@ -104,6 +109,7 @@ class Device:
         self.unread: list[str] = []
         self.fragments: list[str] = []
         self.fragment_at = 0.0
+        self.note: dict = {}  # extra details of the current turn for the dashboard
         self.lock = asyncio.Lock()
 
 
@@ -118,6 +124,8 @@ def looks_unfinished(text: str) -> bool:
     if not words or (text.rstrip().endswith(("?", ".", "!")) and len(words) > 3):
         return False
     if words[-1] in DANGLING_WORDS or " ".join(words[-3:]).endswith(DANGLING_ENDINGS):
+        return True
+    if len(words) == 1 and words[0] in VERB_WORDS:
         return True
     return len(words) <= 2 and words[0] in STARTER_WORDS
 
@@ -157,13 +165,13 @@ def save_state() -> None:
     STATE_FILE.write_text(json.dumps({k: d.session_id for k, d in devices.items()}))
 
 
-def record(device: str, heard: str, reply: dict, seconds: float) -> None:
+def record(device: str, heard: str, reply: dict, seconds: float, note: dict | None = None) -> None:
     """Keep recent turns in memory for the live dashboard."""
     HISTORY.append({
         "ts": time.time(), "device": device,
         "heard": "" if heard == "__wait__" else heard,
         "speak": reply.get("speak", ""), "pending": bool(reply.get("pending")),
-        "end": bool(reply.get("end")), "seconds": round(seconds, 1),
+        "end": bool(reply.get("end")), "seconds": round(seconds, 1), **(note or {}),
     })
 
 
@@ -227,12 +235,35 @@ async def read_result(proc: asyncio.subprocess.Process) -> dict:
             return event
 
 
+async def drain_stale(proc: asyncio.subprocess.Process, name: str) -> None:
+    """Drop output left over from earlier turns.
+
+    Claude Code starts a turn of its own when a background task finishes, and that turn's
+    result sits unread in the pipe. Left there, every later answer is one question behind.
+    """
+    assert proc.stdout
+    while True:
+        try:
+            line = await asyncio.wait_for(proc.stdout.readline(), 0.05)
+        except TimeoutError:
+            return
+        if not line:
+            return
+        with contextlib.suppress(ValueError, AttributeError):
+            event = json.loads(line)
+            if event.get("type") == "result":
+                log.info("[%s] dropped stale result: %s", name, str(event.get("result"))[:120])
+                record(name, "", {"speak": to_speech(str(event.get("result") or ""))}, 0,
+                       {"kind": "background"})
+
+
 async def run_claude(device: Device, text: str, name: str) -> str:
     started = time.monotonic()
     message = json.dumps({"type": "user", "message": {"role": "user", "content": text}})
     for attempt in range(2):
         proc = await start_proc(device, name)
         assert proc.stdin
+        await drain_stale(proc, name)
         try:
             proc.stdin.write((message + "\n").encode())
             await proc.stdin.drain()
@@ -343,7 +374,10 @@ async def voice(request: Request) -> JSONResponse:
     name = str(body.get("device", "iphone"))[:40]
     started = time.monotonic()
     response = await handle(text, name)
-    record(name, text, json.loads(bytes(response.body)), time.monotonic() - started)
+    note = {}
+    if device := devices.get(name):
+        note, device.note = device.note, {}
+    record(name, text, json.loads(bytes(response.body)), time.monotonic() - started, note)
     return response
 
 
@@ -399,11 +433,13 @@ async def handle(text: str, name: str) -> JSONResponse:
         if looks_unfinished(text) and len(device.fragments) < MAX_FRAGMENTS:
             device.fragments.append(text)
             device.fragment_at = time.monotonic()
+            device.note = {"kind": "fragment"}
             return speak(f"{backlog} Go on.".strip())
         if device.fragments:
             text = " ".join([*device.fragments, text])
             device.fragments.clear()
             log.info("[%s] joined: %s", name, text)
+            device.note = {"joined": text}
 
         device.job_text = text
         device.job = asyncio.create_task(run_claude(device, text, name))
