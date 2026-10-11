@@ -5,70 +5,140 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#050507">
 <title>{{name}} · carcode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0d10; --panel: #14171c; --line: #22272f;
-    --text: #e8eaed; --muted: #8b939e; --accent: #4cc2ff; --you: #1f2a36; --ok: #3ddc97; --warn: #ffb547;
+    --bg: #050507; --panel: #07080b;
+    --line: rgba(255,255,255,.1); --line-strong: rgba(255,255,255,.2);
+    --text: #fff; --soft: rgba(255,255,255,.9); --muted: rgba(255,255,255,.55); --faint: rgba(255,255,255,.4);
+    --you: rgba(255,255,255,.12); --tool: rgba(110,231,183,.85); --live: #34d399; --warn: #fbbf24;
+    --sans: "Instrument Sans", "Inter", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 17px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
-  header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px;
-    padding: calc(14px + env(safe-area-inset-top)) 16px 14px; background: rgba(11,13,16,.92);
-    backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
-  .orb { width: 34px; height: 34px; border-radius: 50%; flex: none;
-    background: radial-gradient(circle at 35% 30%, #9fe1ff, var(--accent) 45%, #0a4f73 100%);
-    box-shadow: 0 0 0 0 rgba(76,194,255,.5); }
-  .orb.busy { animation: pulse 1.4s ease-out infinite; }
-  @keyframes pulse { to { box-shadow: 0 0 0 16px rgba(76,194,255,0); } }
-  h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: .2px; }
-  #status { font-size: 14px; color: var(--muted); }
-  #status.live::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px;
-    border-radius: 50%; background: var(--ok); vertical-align: 1px; }
-  #status.down::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px;
-    border-radius: 50%; background: var(--warn); vertical-align: 1px; }
-  main { max-width: 820px; margin: 0 auto; padding: 16px 16px calc(120px + env(safe-area-inset-bottom)); }
-  .turn { margin: 18px 0; }
-  .meta { font-size: 12.5px; color: var(--muted); margin: 0 4px 6px; }
-  .you, .bot { padding: 12px 16px; border-radius: 18px; max-width: 88%; word-wrap: break-word; }
-  .you { margin-left: auto; background: var(--you); border-bottom-right-radius: 6px; }
-  .bot { background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 6px;
-    font-size: 19px; }
-  .row { display: flex; }
-  .row.right { justify-content: flex-end; }
-  .you.part { background: transparent; border: 1px dashed var(--line); color: var(--muted); }
-  .sent { font-size: 13px; color: var(--muted); margin: 6px 4px 0; text-align: right; }
-  .sent b { color: var(--accent); font-weight: 600; }
-  .bot.background { border-color: var(--accent); border-style: dashed; font-size: 17px; }
-  .tag.accent { color: var(--accent); border-color: var(--accent); }
-  .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; margin-left: 8px;
-    border: 1px solid var(--line); color: var(--muted); vertical-align: 2px; }
-  #working { position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
-    background: var(--panel); border-top: 1px solid var(--line); font-size: 16px; display: none; }
-  #working b { color: var(--accent); font-weight: 600; }
-  .empty { color: var(--muted); text-align: center; margin-top: 30vh; }
-  .empty big { display: block; font-size: 22px; color: var(--text); margin-bottom: 6px; }
-  form { max-width: 420px; margin: 25vh auto 0; padding: 0 16px; }
-  input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--line);
-    background: var(--panel); color: var(--text); font-size: 16px; }
-  button { margin-top: 10px; width: 100%; padding: 14px; border: 0; border-radius: 12px;
-    background: var(--accent); color: #00131f; font-weight: 650; font-size: 16px; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+    font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  .label { font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--faint); }
+
+  /* Siri orb: a spinning conic gradient, blurred into a glow */
+  .orb { position: relative; display: inline-block; flex: none; }
+  .orb::before { content: ""; position: absolute; inset: 0; border-radius: 50%; filter: blur(3px);
+    background: conic-gradient(from 0deg, #ff2d87, #a855f7, #22d3ee, #34d399, #ff2d87);
+    animation: spin 6s linear infinite; }
+  .orb::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; background: rgba(13,14,18,.7); }
+  .orb.fast::before { animation-duration: 1.6s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  header { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line);
+    background: rgba(5,5,7,.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    padding-top: env(safe-area-inset-top); }
+  .bar { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .bar h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+  .bar .label { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .dot.live { background: var(--live); animation: live 2s ease-in-out infinite; }
+  .dot.down { background: var(--warn); }
+  @keyframes live { 0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); } 50% { box-shadow: 0 0 0 6px rgba(52,211,153,0); } }
+
+  .layout { max-width: 1080px; margin: 0 auto; padding: 24px 16px calc(110px + env(safe-area-inset-bottom));
+    display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; }
+
+  /* Status card, like the car screen: reply time where speed would be, L·W·S where P·R·N·D would be */
+  .status { position: sticky; top: 88px; display: flex; flex-direction: column; align-items: center; gap: 22px;
+    padding: 26px 18px 22px; border-radius: 20px; background: rgba(255,255,255,.92); color: #020617; }
+  .status .num { margin: 0; font-size: 56px; font-weight: 300; line-height: 1; letter-spacing: -.04em;
+    font-variant-numeric: tabular-nums; text-align: center; }
+  .status .unit { margin: 6px 0 0; font-size: 13px; color: #64748b; text-align: center; }
+  .status .well { display: grid; place-items: center; width: 74px; height: 74px; border-radius: 50%; background: #0d0e12; }
+  .states { display: flex; gap: 18px; font-weight: 600; font-size: 15px; color: #cbd5e1; }
+  .states .on { color: #020617; }
+  .status .state { margin-top: -10px; font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+  .stats { width: 100%; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; }
+  .stats b { display: block; font-size: 20px; font-weight: 500; letter-spacing: -.02em; }
+  .stats span { font-size: 12px; color: #64748b; }
+
+  /* Conversations */
+  .session { border: 1px solid var(--line); background: var(--panel); margin-bottom: 20px; }
+  .session-head { display: flex; justify-content: space-between; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); }
+  .lines { display: flex; flex-direction: column; gap: 10px; padding: 20px 18px 22px; }
+  .you { align-self: flex-end; max-width: 82%; padding: 9px 14px; border-radius: 18px 18px 6px 18px;
+    background: var(--you); font-size: 15.5px; overflow-wrap: anywhere; }
+  .you.part { background: transparent; border: 1px dashed var(--line-strong); color: var(--muted); }
+  .bot { display: flex; gap: 10px; max-width: 92%; color: var(--soft); font-size: 16.5px; overflow-wrap: anywhere; }
+  .bot .orb { margin-top: 4px; }
+  .bot.dim { color: var(--muted); }
+  .bot.background { border-left: 2px solid var(--tool); padding-left: 12px; }
+  .tool { font: 12.5px/1.5 var(--mono); color: var(--tool); overflow-wrap: anywhere; }
+  .tool.right { align-self: flex-end; text-align: right; max-width: 82%; }
+  .time { font: 11px var(--mono); color: var(--faint); margin-left: 8px; white-space: nowrap; }
+  .in { animation: rise .35s ease-out both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .empty { border: 1px solid var(--line); background: var(--panel); padding: 56px 24px; text-align: center; }
+  .empty h2 { margin: 18px 0 6px; font-size: 26px; font-weight: 500; letter-spacing: -.03em; }
+  .empty p { margin: 0; color: var(--muted); }
+
+  /* Working: dashes flowing toward the task */
+  #working { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: none;
+    border-top: 1px solid var(--line); background: rgba(7,8,11,.94); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  #working .inner { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .flow { flex: none; width: 46px; height: 2px;
+    background: repeating-linear-gradient(90deg, rgba(52,211,153,.9) 0 10px, transparent 10px 22px);
+    background-size: 22px 100%; animation: flow .9s linear infinite; }
+  @keyframes flow { to { background-position: 22px 0; } }
+  #working .task { min-width: 0; font-size: 15px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  form { max-width: 420px; margin: 18vh auto 0; padding: 0 16px; }
+  form h2 { margin: 18px 0 6px; font-size: 26px; font-weight: 500; letter-spacing: -.03em; }
+  form p { margin: 0 0 20px; color: var(--muted); }
+  form code { font: 13px var(--mono); color: var(--soft); }
+  input { width: 100%; padding: 14px; border: 1px solid var(--line-strong); border-radius: 0;
+    background: var(--panel); color: var(--text); font: 15px var(--mono); }
+  input:focus { outline: 2px solid rgba(255,255,255,.5); outline-offset: 2px; }
+  button { margin-top: 10px; width: 100%; padding: 14px; border: 0; border-radius: 999px;
+    background: #fff; color: #020617; font: 600 15px var(--sans); cursor: pointer; }
+
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-top: 16px; }
+    .status { position: static; flex-direction: row; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 16px; }
+    .status .num { font-size: 34px; text-align: left; }
+    .status .unit { margin-top: 2px; text-align: left; font-size: 12px; }
+    .status .well { width: 48px; height: 48px; order: -1; }
+    .status .well .orb { width: 30px !important; height: 30px !important; }
+    .status .state, .stats { display: none; }
+    .states { gap: 12px; }
+    .lines { padding: 16px 14px 18px; }
+    .session-head { padding: 10px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .orb::before, .dot.live, .flow, .in { animation: none !important; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <div class="orb" id="orb"></div>
-  <div><h1>{{name}}</h1><div id="status">Connecting…</div></div>
+  <div class="bar">
+    <span class="orb" id="headOrb" style="width:28px;height:28px"></span>
+    <h1>{{name}}</h1>
+    <span class="label"><span class="dot" id="dot"></span><span id="status">Connecting</span></span>
+  </div>
 </header>
-<main id="feed"></main>
-<div id="working"></div>
+<div id="root"></div>
+<div id="working"><div class="inner"><span class="label">Working</span><span class="flow"></span><span class="task" id="task"></span></div></div>
 
 <script>
-const feed = document.getElementById("feed");
+const root = document.getElementById("root");
 const statusEl = document.getElementById("status");
-const orb = document.getElementById("orb");
+const dot = document.getElementById("dot");
+const headOrb = document.getElementById("headOrb");
 const workingEl = document.getElementById("working");
+const taskEl = document.getElementById("task");
+const SESSION_GAP = 10 * 60;  // seconds of silence that start a new conversation
 
 // Token comes from the link (#t=...), never sent to the server in the URL.
 function readToken() {
@@ -79,57 +149,121 @@ function readToken() {
 let token = readToken();
 
 function askToken() {
-  feed.innerHTML = `<form id="f"><input id="t" placeholder="Paste your token" autocomplete="off"><button>Open</button></form>`;
+  root.innerHTML = `<form id="f"><span class="orb" style="width:44px;height:44px"></span>
+    <h2>Open {{name}}'s log</h2><p>Paste the token from <code>./carcode status</code>.</p>
+    <input id="t" placeholder="Token" autocomplete="off" spellcheck="false"><button>Open</button></form>`;
   document.getElementById("f").onsubmit = e => {
     e.preventDefault();
     token = document.getElementById("t").value.trim();
     try { localStorage.setItem("carcodeToken", token); } catch {}
-    lastKey = ""; poll();
+    lastKey = ""; seen = 0; poll();
   };
 }
 
-const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const time = ts => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const clock = ts => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const day = ts => {
+  const d = new Date(ts * 1000);
+  return d.toDateString() === new Date().toDateString() ? "Today" : d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+};
+const orb = (px, fast) => `<span class="orb${fast ? " fast" : ""}" style="width:${px}px;height:${px}px"></span>`;
+const FILLER = /^(One moment|Still working|Go on|I didn't catch that)\.?$/;
 
-let lastKey = "";
+// Split turns into conversations: a goodbye or a long silence ends one.
+function sessions(turns) {
+  const out = [];
+  let cur = null;
+  turns.forEach((t, i) => {
+    if (!cur || t.ts - cur.last > SESSION_GAP) out.push(cur = { items: [], last: t.ts });
+    cur.items.push([t, i]);
+    cur.last = t.ts;
+    if (t.end) cur = null;
+  });
+  return out;
+}
+
+function lines(t, isNew) {
+  const cls = isNew ? " in" : "";
+  const out = [];
+  if (t.kind === "background") {
+    out.push(`<div class="tool${cls}">› finished in background<span class="time">${clock(t.ts)}</span></div>`);
+    out.push(`<div class="bot background${cls}">${esc(t.speak)}</div>`);
+    return out.join("");
+  }
+  if (t.heard) out.push(`<div class="you${t.kind === "fragment" ? " part" : ""}${cls}">${esc(t.heard)}</div>`);
+  if (t.kind === "fragment") out.push(`<div class="tool right${cls}">› waiting for the rest</div>`);
+  if (t.joined) out.push(`<div class="tool right${cls}">› sent: ${esc(t.joined)}</div>`);
+  if (t.pending) out.push(`<div class="tool${cls}">› working in the background</div>`);
+  if (t.speak) {
+    const dim = t.kind === "fragment" || t.end || FILLER.test(t.speak);
+    const secs = t.seconds >= 0.5 ? `<span class="time">${t.seconds.toFixed(1)}s</span>` : "";
+    out.push(`<div class="bot${dim ? " dim" : ""}${cls}">${orb(16)}<span>${esc(t.speak)}${secs}</span></div>`);
+  }
+  if (t.end) out.push(`<div class="tool${cls}">› conversation ended</div>`);
+  return out.join("");
+}
+
+let lastKey = "", seen = 0;
 function render(data) {
   const turns = data.turns.filter(t => t.device !== "test");
   const key = JSON.stringify([turns.length, turns.at(-1)?.ts, data.working]);
   if (key === lastKey) return;
   lastKey = key;
 
-  const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 80;
+  const busy = data.working.length > 0;
+  const answered = turns.filter(t => t.heard && t.speak && !t.pending && !t.end && t.kind !== "fragment" && !FILLER.test(t.speak));
+  const last = answered.at(-1);
+  const avg = answered.length ? answered.reduce((s, t) => s + t.seconds, 0) / answered.length : 0;
+  const state = busy ? "W" : !turns.length || turns.at(-1).end ? "" : "L";
+  const stateName = { W: "Working", L: "Listening", "": "Idle" }[state];
+
+  const nearBottom = innerHeight + scrollY >= document.body.scrollHeight - 120;
+  const status = `<aside class="status">
+      <div><p class="num">${last ? last.seconds.toFixed(1) : "0.0"}</p><p class="unit">s to reply</p></div>
+      <span class="well">${orb(46, busy)}</span>
+      <div class="states">${["L", "W", "S"].map(s => `<span class="${s === state ? "on" : ""}">${s}</span>`).join("")}</div>
+      <span class="state">${stateName}</span>
+      <div class="stats"><div><b>${answered.length}</b><span>answers</span></div><div><b>${avg.toFixed(1)}s</b><span>average</span></div></div>
+    </aside>`;
+
+  let feed;
   if (!turns.length) {
-    feed.innerHTML = `<div class="empty"><big>Say "Hey Siri, {{name}}"</big>Your conversation shows up here as you talk.</div>`;
+    feed = `<div class="empty">${orb(56)}<h2>Say "Hey Siri, {{name}}"</h2><p>Your conversation shows up here as you talk.</p></div>`;
   } else {
-    feed.innerHTML = turns.map(t => {
-      const label = t.kind === "background" ? "finished in background"
-        : t.kind === "fragment" ? "waiting for the rest"
-        : t.joined ? "joined" : t.pending ? "working" : t.end ? "ended" : "";
-      const tag = label ? `<span class="tag${t.kind || t.joined ? " accent" : ""}">${label}</span>` : "";
-      const meta = t.kind === "background" ? time(t.ts) : `${time(t.ts)} · ${t.seconds}s`;
-      const you = t.heard ? `<div class="row right"><div class="you${t.kind === "fragment" ? " part" : ""}">${esc(t.heard)}</div></div>` : "";
-      const sent = t.joined ? `<div class="sent"><b>Sent:</b> ${esc(t.joined)}</div>` : "";
-      const reply = t.speak ? `<div class="row"><div class="bot${t.kind === "background" ? " background" : ""}">${esc(t.speak)}</div></div>` : "";
-      return `<div class="turn"><div class="meta">${meta}${tag}</div>${you}${sent}${reply}</div>`;
+    const all = sessions(turns);
+    feed = all.map((s, n) => {
+      const first = s.items[0][0];
+      const live = n === all.length - 1 && !s.items.at(-1)[0].end;
+      const said = s.items.filter(([t]) => t.heard && t.kind !== "fragment").length;
+      const body = s.items.map(([t, i]) => lines(t, seen > 0 && i >= seen)).join("");
+      return `<section class="session"><div class="session-head"><span class="label">${day(first.ts)} · ${clock(first.ts)}</span>
+        <span class="label">${live ? "Live" : said + (said === 1 ? " turn" : " turns")}</span></div>
+        <div class="lines">${body}</div></section>`;
     }).join("");
   }
-  const busy = data.working.length > 0;
-  orb.classList.toggle("busy", busy);
+  seen = turns.length;
+  root.innerHTML = `<main class="layout">${status}<div>${feed}</div></main>`;
+
+  headOrb.classList.toggle("fast", busy);
   workingEl.style.display = busy ? "block" : "none";
-  workingEl.innerHTML = busy ? `<b>Working on</b> ${esc(data.working[0].task)}` : "";
+  taskEl.textContent = busy ? data.working[0].task : "";
   if (nearBottom) scrollTo(0, document.body.scrollHeight);
 }
 
+function setStatus(text, cls) {
+  statusEl.textContent = text;
+  dot.className = "dot " + cls;
+}
+
 async function poll() {
-  if (!token) { askToken(); statusEl.textContent = "Token needed"; return; }
+  if (!token) { askToken(); setStatus("Token needed", "down"); return; }
   try {
     const r = await fetch("/api/history", { headers: { "X-Carcode-Token": token }, cache: "no-store" });
-    if (r.status === 401) { token = ""; askToken(); statusEl.textContent = "Token rejected"; return; }
+    if (r.status === 401) { token = ""; askToken(); setStatus("Token rejected", "down"); return; }
     render(await r.json());
-    statusEl.textContent = "Live"; statusEl.className = "live";
+    setStatus("Live", "live");
   } catch {
-    statusEl.textContent = "Can't reach {{name}}"; statusEl.className = "down";
+    setStatus("Can't reach {{name}}", "down");
   }
   setTimeout(poll, 1500);
 }
