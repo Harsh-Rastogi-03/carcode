@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1
+
+- **A new dashboard.** The live dashboard now looks like the carcode page: the Siri orb, a
+  status card like the car screen (reply time, Listening / Working state, answer count and
+  average), and it works at phone width.
+- **All your history, by session.** Every turn is saved to `data/history.jsonl`, so the dashboard
+  keeps your conversations across restarts, grouped by Claude Code session and by conversation.
+  The first time it starts, carcode rebuilds earlier sessions from Claude Code's transcripts.
+
 ## 1.2.0
 
 - **Answers stay in step.** When Claude Code finished a background task, its extra reply sat

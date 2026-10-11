@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/works_with-Claude_Code-000000?style=flat-square&logo=anthropic&logoColor=white" alt="Works with Claude Code">
   <a href="https://www.npmjs.com/package/carcode-cli"><img src="https://img.shields.io/npm/v/carcode-cli?style=flat-square&color=000000&label=npm" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/carcode-cli"><img src="https://img.shields.io/npm/dm/carcode-cli?style=flat-square&color=000000&label=downloads" alt="npm downloads"></a>
+  <a href="https://www.producthunt.com/products/carcode?utm_source=github&utm_medium=readme"><img src="https://img.shields.io/badge/Product_Hunt-carcode-FF6154?style=flat-square&logo=producthunt&logoColor=white" alt="carcode on Product Hunt"></a>
   <img src="https://img.shields.io/badge/license-MIT-000000?style=flat-square" alt="MIT">
 </p>
 
