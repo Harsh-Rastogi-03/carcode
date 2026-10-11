@@ -170,7 +170,7 @@ Start with `./carcode doctor`: it checks every piece and prints the fix for anyt
 | GitHub answers are slow or wrong | Set `CARCODE_GH_USER` if you have several `gh` accounts |
 | Anything else | `./carcode logs` shows each request, how long it took, and any errors |
 
-**Want a URL that never changes?** The free quick tunnel gets a new address when it restarts, for example after a reboot. For a permanent one, use a [named Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) on your own domain or [Tailscale Funnel](https://tailscale.com/kb/1223/funnel), and put its address in `data/url`.
+**Want a URL that never changes?** The free quick tunnel gets a new address when it restarts, for example after a reboot. For a permanent one on your own domain (its DNS must be on Cloudflare), run `cloudflared tunnel login`, `cloudflared tunnel create jarvis` and `cloudflared tunnel route dns jarvis jarvis.example.com`, then set `CARCODE_TUNNEL_NAME=jarvis` and `CARCODE_TUNNEL_HOSTNAME=jarvis.example.com` in `.env` and run `./carcode install`. [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) also works: put its address in `data/url`.
 
 ## FAQ
 
