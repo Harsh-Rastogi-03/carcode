@@ -249,7 +249,9 @@ cmd_talk() { python3 talk.py "$@"; }
 
 cmd_update() {
   if [[ -d .git ]]; then
-    git pull --ff-only
+    # If the published history was rewritten, a fast-forward fails; move onto the new
+    # history instead. --keep refuses rather than lose local edits; data/ and .env are untracked.
+    git pull --ff-only || { git fetch --quiet origin && git reset --keep origin/main; }
     echo "Updated to $(git rev-parse --short HEAD)."
   else
     echo "This copy was installed with npm. Update with: npx carcode-cli@latest update"
